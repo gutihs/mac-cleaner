@@ -92,6 +92,12 @@ def confirm(msg="\nDo you want to delete all the above files and folders? (y/N)"
 def do_cleanup(reports):
     print("\nDeleting files...\n")
     for report in reports:
+        auto_delete = report["group"].get("auto_delete", False)
+        should_delete = auto_delete or confirm(f"Do you want to delete {report['name']}? (y/N)")
+        if not should_delete:
+            print(f"Skipping {report['name']}.")
+            continue
+        print(f"Deleting {report['name']}...")
         for path_str, _ in report["details"]:
             path = Path(path_str)
             try:
@@ -147,14 +153,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Safe CleanMyMac CLI with Simulator Management")
     parser.add_argument("--delete-simulators", action="store_true",
                         help="Delete Xcode simulators (safe for Xcode database)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Show what would be deleted without actually deleting")
     args = parser.parse_args()
 
     if args.delete_simulators:
         delete_all_simulators()
-        sys.exit(0)
+        sys.exit(0)        
 
     reports = show_report(CLEANUP_GROUPS)
-    if confirm():
-        do_cleanup(reports)
+
+    if args.dry_run:
+        print("\nDry run mode: no files will be deleted.")
     else:
-        print("\nOperation cancelled.")
+        if confirm():
+            do_cleanup(reports)
+        else:
+            print("\nOperation cancelled.")
