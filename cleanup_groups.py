@@ -90,12 +90,12 @@ CLEANUP_GROUPS = [
         ],
         "auto_delete": True
     },
-    # {
-    #     "name": "Invisible System Files",
-    #     "find_patterns": [".DS_Store", ".AppleDouble", ".Spotlight-V100", ".TemporaryItems"],
-    #     "base_dirs": [HOME],
-    #     "auto_delete": True
-    # },
+    {
+        "name": "Invisible System Files",
+        "find_patterns": [".DS_Store", ".AppleDouble", ".Spotlight-V100", ".TemporaryItems"],
+        "base_dirs": [HOME],
+        "auto_delete": True
+    },
 
     # to be confirmed before deletion
     {
