@@ -1,4 +1,6 @@
 from pathlib import Path
+from app_containers_helpers import get_unused_containers
+from xcode_simulator_helpers import get_simulator_group
 
 HOME = Path.home()
 
@@ -13,17 +15,15 @@ def get_safe_subfolders(base, names):
 CLEANUP_GROUPS = [
     # safe to delete automatically
     {
-        "name": "User Caches",
-        "paths": [HOME / "Library" / "Caches"],
+        "name": "User Caches & Logs",
+        "paths": [
+            HOME / "Library" / "Caches",
+            HOME / "Library" / "Logs"
+        ],
         "auto_delete": True
     },
     {
-        "name": "User Logs",
-        "paths": [HOME / "Library" / "Logs"],
-        "auto_delete": True
-    },
-    {
-        "name": "Application Containers: Caches & Logs",
+        "name": "Application Containers Caches & Logs",
         "get_paths": lambda: [
             subdir
             for cont in (HOME / "Library" / "Containers").iterdir() if cont.is_dir()
@@ -32,7 +32,7 @@ CLEANUP_GROUPS = [
         "auto_delete": True
     },
     {
-        "name": "Application Support: Caches & Logs",
+        "name": "Application Support Caches & Logs",
         "get_paths": lambda: [
             subdir
             for subdir in get_safe_subfolders(HOME / "Library" / "Application Support", ["Caches", "Logs"])
@@ -46,12 +46,6 @@ CLEANUP_GROUPS = [
             Path("/var/tmp"),
             Path("/private/var/folders"),
         ],
-        "auto_delete": True
-    },
-    {
-        "name": "Invisible System Files",
-        "find_patterns": [".DS_Store", ".AppleDouble", ".Spotlight-V100", ".TemporaryItems"],
-        "base_dirs": [HOME],
         "auto_delete": True
     },
     {
@@ -69,41 +63,23 @@ CLEANUP_GROUPS = [
         "auto_delete": True
     },
     {
-        "name": "iTunes/Music Cache",
+        "name": "iTunes/Music/iMovie Cache",
         "paths": [
             HOME / "Library" / "Caches" / "com.apple.iTunes",
-            HOME / "Library" / "Caches" / "com.apple.Music"
-        ],
-        "auto_delete": True
-    },
-    {
-        "name": "Xcode/Final Cut/iMovie Cache",
-        "paths": [
-            HOME / "Library" / "Developer" / "Xcode" / "DerivedData",
+            HOME / "Library" / "Caches" / "com.apple.Music",
             HOME / "Movies" / "Final Cut Backups",
         ],
         "auto_delete": True
     },
     {
-        "name": "VSCode Cache",
+        "name": "Dev Cache",
         "paths": [
+            HOME / "Library" / "Developer" / "Xcode" / "DerivedData",
             HOME / "Library" / "Application Support" / "Code" / "Cache",
             HOME / "Library" / "Application Support" / "Code" / "CachedData",
-        ],
-        "auto_delete": True
-    },
-    {
-        "name": "Gradle & Android Cache",
-        "paths": [
             HOME / ".gradle",
             HOME / ".android" / "build-cache",
-        ],
-        "auto_delete": True
-    },
-    {
-        "name": "CocoaPods Cache",
-        "paths": [
-            HOME / "Library" / "Caches" / "CocoaPods"
+            HOME / "Library" / "Caches" / "CocoaPods",
         ],
         "auto_delete": True
     },
@@ -114,6 +90,12 @@ CLEANUP_GROUPS = [
         ],
         "auto_delete": True
     },
+    # {
+    #     "name": "Invisible System Files",
+    #     "find_patterns": [".DS_Store", ".AppleDouble", ".Spotlight-V100", ".TemporaryItems"],
+    #     "base_dirs": [HOME],
+    #     "auto_delete": True
+    # },
 
     # to be confirmed before deletion
     {
@@ -134,6 +116,24 @@ CLEANUP_GROUPS = [
             HOME / "Library" / "Application Support" / "Dropbox",
             HOME / "Library" / "Application Support" / "Google" / "DriveFS"
         ],
+        "auto_delete": False
+    },
+    {
+        "name": "Xcode Simulators",
+        "get_paths": get_simulator_group,
+        "auto_delete": False
+    },
+    {
+        "name": "Application Containers: Tmp Folders",
+        "get_paths": lambda: [
+            tmp for cont in (HOME / "Library" / "Containers").iterdir() if cont.is_dir()
+            for tmp in get_safe_subfolders(cont / "Data", ["tmp"])
+        ] if (HOME / "Library" / "Containers").exists() else [],
+        "auto_delete": False
+    },
+    {
+        "name": "Unused Application Containers",
+        "get_paths": get_unused_containers,
         "auto_delete": False
     }
 ]
