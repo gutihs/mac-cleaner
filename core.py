@@ -48,12 +48,15 @@ def confirm(msg="\nDo you want to delete all the above files and folders? (y/N)"
     print(msg)
     return input("> ").strip().lower() == "y"
 
-def show_report(groups):
+def show_report(groups, is_complete=True):
     print("\n--- SAFE CLEANUP ANALYSIS ---\n")
     reports = []
     for idx, group in enumerate(groups):
-        auto_delete_status = " (with user confirmation)" if not group.get("auto_delete", False) else ""
-        print(f"{idx+1}. {group['name']}{auto_delete_status}:")
+        auto_delete = group.get("auto_delete", False)
+        cleaning_type_text = "[for complete cleaning]" if not auto_delete else "[for simple cleaning]"
+        if not is_complete and not auto_delete:
+            continue
+        print(f"{idx+1}. {group['name']} {cleaning_type_text}:")
         group_size = 0
         details = [] # tuples of (path, size)
         
@@ -89,10 +92,12 @@ def show_report(groups):
     print(f"\nTOTAL: {format_to_human_readable(total_cleanup)}\n")
     return reports
 
-def do_cleanup(reports):
+def do_cleanup(reports, is_complete=False):
     print("\nDeleting files...\n")
     for report in reports:
         auto_delete = report["group"].get("auto_delete", False)
+        if (not is_complete and not auto_delete):
+            continue
         should_delete = auto_delete or confirm(f"Do you want to delete {report['name']}? (y/N)")
         if not should_delete:
             print(f"Skipping {report['name']}.")
