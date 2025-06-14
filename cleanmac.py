@@ -19,7 +19,7 @@ if __name__ == "__main__":
         print("\nDry run mode: no files will be deleted.")
     elif args.simple or args.complete:
         reports = show_report(CLEANUP_GROUPS, is_complete=args.complete)
-        if confirm():
+        if confirm('Do you want to proceed with the cleanup? (y/N)'):
             do_cleanup(reports, is_complete=args.complete)
         else:
             print("\nOperation cancelled.")

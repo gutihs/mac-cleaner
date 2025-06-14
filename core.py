@@ -44,7 +44,7 @@ def find_and_size(base_dir, patterns):
                     matches.append((full_path, size))
     return total, matches
 
-def confirm(msg="\nDo you want to delete all the above files and folders? (y/N)"):
+def confirm(msg):
     print(msg)
     return input("> ").strip().lower() == "y"
 
@@ -53,7 +53,7 @@ def show_report(groups, is_complete=True):
     reports = []
     for idx, group in enumerate(groups):
         auto_delete = group.get("auto_delete", False)
-        cleaning_type_text = "[for complete cleaning]" if not auto_delete else "[for simple cleaning]"
+        cleaning_type_text = "[confirmation pending]" if not auto_delete else "[included in cleanup]"
         if not is_complete and not auto_delete:
             continue
         print(f"{idx+1}. {group['name']} {cleaning_type_text}:")
@@ -93,26 +93,38 @@ def show_report(groups, is_complete=True):
     return reports
 
 def do_cleanup(reports, is_complete=False):
-    print("\nDeleting files...\n")
+    print(f"Performing {'complete' if is_complete else 'simple'} cleanup...")
     for report in reports:
         auto_delete = report["group"].get("auto_delete", False)
         if (not is_complete and not auto_delete):
             continue
-        should_delete = auto_delete or confirm(f"Do you want to delete {report['name']}? (y/N)")
-        if not should_delete:
+        if auto_delete:
+            should_delete_group = True
+        else:
+            should_delete_group = confirm(f"Do you want to process {report['name']}? (y/N)")
+        if not should_delete_group:
             print(f"Skipping {report['name']}.")
             continue
-        print(f"Deleting {report['name']}...")
+        print(f"Processing {report['name']}...")
         if report['name'] == "Xcode Simulators":
             delete_all_simulators()
             continue
         for path_str, _ in report["details"]:
             path = Path(path_str)
+            if auto_delete:
+                should_delete = True
+            else:
+                should_delete = confirm(f"Delete: {path}? (y/N)")
+            if not should_delete:
+                print(f"    Skipped {path}")
+                continue
             try:
                 if path.is_file():
                     path.unlink()
+                    print(f"    Deleted file: {path}")
                 elif path.is_dir():
                     shutil.rmtree(path, ignore_errors=True)
+                    print(f"    Deleted folder: {path}")
             except Exception as e:
                 print(f"    [!] Could not delete {path}: {e}")
     print("\nCleanup completed.")
