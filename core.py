@@ -1,5 +1,8 @@
 import os
+import sys
+import time
 import shutil
+import threading
 from pathlib import Path
 from cleanup_groups import CLEANUP_GROUPS
 from xcode_simulator_helpers import delete_all_simulators
@@ -48,55 +51,65 @@ def confirm(msg):
     print(msg)
     return input("> ").strip().lower() == "y"
 
-def show_report(groups, is_complete=True):
-    print("\n--- SAFE CLEANUP ANALYSIS ---\n")
+def show_progress(text, stop_event=None):
+    chars = "/—\\|"
+    i = 0
+    while not stop_event.is_set():
+        sys.stdout.write(f'\r{text} {chars[i % len(chars)]}')
+        sys.stdout.flush()
+        time.sleep(0.1)
+        i += 1
+    # Clear the progress line when the stop event is set
+    sys.stdout.write('\r' + ' ' * (len(text) + 4) + '\r')
+    sys.stdout.flush()
+
+def show_report(pick_auto_delete, show_details):
     reports = []
-    for idx, group in enumerate(groups):
+    for group in CLEANUP_GROUPS:
         auto_delete = group.get("auto_delete", False)
-        cleaning_type_text = "[confirmation pending]" if not auto_delete else "[included in cleanup]"
-        if not is_complete and not auto_delete:
+        if (auto_delete != pick_auto_delete):
             continue
-        print(f"{idx+1}. {group['name']} {cleaning_type_text}:")
-        group_size = 0
-        details = [] # tuples of (path, size)
-        
-        # Dynamic paths
-        if "get_paths" in group:
-            paths = group["get_paths"]()
-        else:
-            paths = group.get("paths", [])
-        for path in paths:
-            size = get_size(path)
-            if size > 0:
-                details.append((str(path), size))
-                group_size += size
-                
-        # Pattern finders
-        for base_dir in group.get("base_dirs", []):
-            size, matches = find_and_size(base_dir, group.get("find_patterns", []))
-            if size > 0:
-                for match in matches:
-                    details.append(match)
-                group_size += size
-                
+        print(f"* {group['name']}:")
+        # show loading in another thread
+        stop_event = threading.Event()
+        t = threading.Thread(target=show_progress, args=("Analyzing files...", stop_event))
+        t.start()
+        try:
+            # perform search and size calculation
+            group_size = 0
+            details = [] # tuples of (path, size)
+            if "get_paths" in group:
+                paths = group["get_paths"]()
+            else:
+                paths = group.get("paths", [])
+            for path in paths:
+                size = get_size(path)
+                if size > 0:
+                    details.append((str(path), size))
+                    group_size += size
+            for base_dir in group.get("base_dirs", []):
+                size, matches = find_and_size(base_dir, group.get("find_patterns", []))
+                if size > 0:
+                    for match in matches:
+                        details.append(match)
+                    group_size += size
+        finally:
+            # stop the loading thread
+            stop_event.set()
+            t.join()
         print(f"    {format_to_human_readable(group_size)}")
-        
-        # for d, s in details[:5]:
-        for d, s in details:
-            print(f"        {d} ({format_to_human_readable(s)})")
-        # if len(details) > 5:
-        #     print(f"        ... and {len(details)-5} more")
+        if show_details:
+            for d, s in details:
+                print(f"        {d} ({format_to_human_readable(s)})")
         reports.append({"name": group["name"], "details": details, "total": group_size, "group": group})
-        
     total_cleanup = sum(r["total"] for r in reports)
     print(f"\nTOTAL: {format_to_human_readable(total_cleanup)}\n")
     return reports
 
-def do_cleanup(reports, is_complete=False):
-    print(f"Performing {'complete' if is_complete else 'simple'} cleanup...")
+def do_cleanup(reports, pick_auto_delete):
     for report in reports:
         auto_delete = report["group"].get("auto_delete", False)
-        if (not is_complete and not auto_delete):
+        if (auto_delete != pick_auto_delete):
             continue
         if auto_delete:
             should_delete_group = True
